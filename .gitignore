@@ -1,0 +1,47 @@
+# Python / FastAPI
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.env
+*.env
+.env.*
+.python-version
+.mypy_cache/
+.pytest_cache/
+.coverage
+.cache/
+dist/
+build/
+*.egg-info/
+htmlcov/
+.ipynb_checkpoints
+
+# Logs
+*.log
+logs/
+
+# IDE settings
+.vscode/
+.idea/
+*.iml
+
+# Android / Android Studio
+.gradle/
+local.properties
+.cxx/
+captures/
+*/build/
+app/build/
+*.apk
+*.ap_
+*.aar
+*.aab
+*.keystore
+*.jks
+
+# OS
+.DS_Store
+Thumbs.db
