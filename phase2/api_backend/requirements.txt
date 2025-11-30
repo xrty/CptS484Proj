@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+
+# Optional add-ons for later (uncomment as needed):
+# pydantic-settings    # env-based settings management
+# sqlalchemy           # sync ORM
+# sqlalchemy[asyncio]  # async ORM
+# aiosqlite            # async SQLite driver
+# python-multipart     # form-data uploads
+# requests             # call external APIs
