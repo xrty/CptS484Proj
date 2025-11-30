@@ -1,0 +1,4 @@
+*.gradle text eol=lf
+*.kts    text eol=lf
+*.sh     text eol=lf
+*.bat    text eol=crlf
