@@ -1,2 +1,16 @@
 __Author:__
 Felix Zheng, Ziming Fu, Tong Shen, Jinming Wang, Zirun Ye, Zijian Zhang
+
+phase 2: location of android app and fast api backend in their respective folders. 
+
+Technologies used: 
+Android Studio (front end)
+FastAPI (backend)
+
+
+FastAPI:
+app: directory 
+CptS484Proj/phase2/api_backend/app/routes/: one python file for the backend for each use case
+CptS484Proj/phase2/api_backend/app: intialization + models
+
+
