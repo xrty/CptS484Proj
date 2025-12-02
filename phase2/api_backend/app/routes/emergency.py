@@ -1,36 +1,36 @@
-from typing import List, Optional
-
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from pydantic import BaseModel
-
-from app.models import Location
 
 router = APIRouter(tags=["emergency"])
 
 
-class EmergencyEvent(BaseModel):
-    user_id: Optional[str] = None
-    location: Location
-    fall_detected: bool = True
-    sensor_confidence: Optional[float] = None  # 0-1
+class FallAlert(BaseModel):
+    user_id: int
+    latitude: float
+    longitude: float
+    source: str = "android_app"
 
 
-class EmergencyAck(BaseModel):
-    notified_contacts: List[str]
-    ticket_id: str
+@router.get("/ping")
+def ping() -> dict:
+    return {"message": "pong"}
 
 
-# Prototype log; swap for persistence later.
-_emergency_log: List[EmergencyAck] = []
 
 
-@router.post("/emergency", response_model=EmergencyAck, status_code=status.HTTP_202_ACCEPTED)
-def trigger_emergency(event: EmergencyEvent) -> EmergencyAck:
-    if not event.fall_detected:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No emergency detected")
+@router.post("/alerts/fall")
+def receive_fall(alert: FallAlert) -> dict:
+    """
+    The single "real" endpoint: logs and acknowledges a fall alert.
+    Later you can plug in DB lookups + notifications.
+    """
+    print("=== FALL ALERT RECEIVED ===")
+    print(f"User ID: {alert.user_id}")
+    print(f"Location: ({alert.latitude}, {alert.longitude})")
+    print(f"Source: {alert.source}")
+    print("===========================")
 
-    # Stub contact notification list; plug in SMS/Push later.
-    contacts = ["primary_caregiver", "facility_security"]
-    ack = EmergencyAck(notified_contacts=contacts, ticket_id=f"case-{len(_emergency_log) + 1}")
-    _emergency_log.append(ack)
-    return ack
+    return {
+        "status": "ok",
+        "message": "Fall alert received. (Dummy notification sent.)",
+    }

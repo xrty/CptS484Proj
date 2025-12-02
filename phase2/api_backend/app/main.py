@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routes import building_map, emergency, guidance
+from app.routes import building_map, emergency, guidance, users
 
 app = FastAPI(
     title="Prototype API",
@@ -11,6 +11,7 @@ app = FastAPI(
 app.include_router(guidance.router)
 app.include_router(emergency.router)
 app.include_router(building_map.router)
+app.include_router(users.router)
 
 
 @app.get("/health", tags=["system"])
