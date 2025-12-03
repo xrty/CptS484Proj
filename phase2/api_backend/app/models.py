@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -29,3 +29,10 @@ class User(BaseModel):
     email: Optional[str] = None
     settings: Settings = Field(default_factory=Settings)
     contacts: list[Contact] = Field(default_factory=list)
+
+
+class Hallway(BaseModel):
+    id: int
+    name: str
+    status: Literal["available", "under_construction"] = "available"
+    description: Optional[str] = None
