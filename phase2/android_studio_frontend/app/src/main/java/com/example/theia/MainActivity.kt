@@ -76,7 +76,7 @@ private fun AppShell() {
 
             AppScreen.M_DASHBOARD ->
                 ManagerDashboardScreen(
-                    onRegionStatus = { /* TODO next step */ },
+                    onRegionStatus = { /* TODO next step */},
                     onAccessibleAreas = { /* TODO next step */ },
                     onBack = { screen = AppScreen.HOME },
                     modifier = Modifier.padding(padding)
