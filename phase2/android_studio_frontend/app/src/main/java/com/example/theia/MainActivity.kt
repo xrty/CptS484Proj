@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -25,10 +27,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.theia.network.ApiClient
 import com.example.theia.network.FallAlert
+import com.example.theia.network.LoginRequest
+import com.example.theia.network.LoginResponse
 import com.example.theia.ui.theme.TheiaTheme
 import retrofit2.Call
 import retrofit2.Callback
@@ -47,7 +53,11 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class AppScreen {
-    HOME, EMERGENCY, GUIDANCE, MANAGER_LOGIN, MAP_DASHBOARD
+    HOME,
+    EMERGENCY,
+    GUIDANCE,
+    MANAGER_LOGIN,
+    MANAGER_DASHBOARD
 }
 
 @Composable
@@ -68,20 +78,17 @@ private fun AppShell() {
             )
             AppScreen.EMERGENCY -> EmergencyScreen(onBack = { screen = AppScreen.HOME }, modifier = Modifier.padding(padding))
             AppScreen.GUIDANCE -> PlaceholderScreen("Guidance view (placeholder)", onBack = { screen = AppScreen.HOME }, modifier = Modifier.padding(padding))
-            AppScreen.Manager_LOGIN -> ManagerLoginScreen(
+            AppScreen.MANAGER_LOGIN -> ManagerLoginScreen(
                 onSuccess = { screen = AppScreen.MANAGER_DASHBOARD },
                 onBack = { screen = AppScreen.HOME },
                 modifier = Modifier.padding(padding)
             )
-
-            AppScreen.M_DASHBOARD ->
-                ManagerDashboardScreen(
-                    onRegionStatus = { /* TODO next step */},
-                    onAccessibleAreas = { /* TODO next step */ },
-                    onBack = { screen = AppScreen.HOME },
-                    modifier = Modifier.padding(padding)
-                )
-        }
+            AppScreen.MANAGER_DASHBOARD -> ManagerDashboardScreen(
+                onRegionStatus = { /* TODO next step */ },
+                onAccessibleAreas = { /* TODO next step */ },
+                onBack = { screen = AppScreen.HOME },
+                modifier = Modifier.padding(padding)
+            )
         }
     }
 }
@@ -114,7 +121,7 @@ private fun HomeScreen(onNavigate: (AppScreen) -> Unit, modifier: Modifier = Mod
             Text("Guidance (placeholder)")
         }
         Button(
-            onClick = { onNavigate(AppScreen.MAP) },
+            onClick = { onNavigate(AppScreen.MANAGER_LOGIN) },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Building Manager Login")
@@ -200,49 +207,32 @@ private fun PlaceholderScreen(text: String, onBack: () -> Unit, modifier: Modifi
 }
 
 @Composable
-private fun ManagerLoginScreen(text: String, onSuccess: () -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier) {
+private fun ManagerLoginScreen(onSuccess: () -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("Manager Login", = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
-        androidx.compose.material3.OutlinedTextField(
-            value = username,
-            onValueChange = { username = it },
-            label = { Text("Username") },
-            modifier = Modifier.fillMaxWidth
-        )
-        androidx.compose.material3.OutlinedTextField(
-            value = password,
-            onValueChange = { username = it },
-            label = { Text("Password") },
-            modifier = Modifier.fillMaxWidth
-        )
+    fun attemptLogin() {
+        if (username.isBlank() || password.isBlank()) {
+            status = "Please enter a username and password."
+            return
+        }
+        if (isLoading) return
 
-        Button(
-            onClick = {if (isLoading) return @Button
-                      isLoading=true
-                      status = "Logging in..."},
+        isLoading = true
+        status = "Logging in..."
 
-                ApiClient.api.managerLogin(
-                    LoginRequest(username, password)
-                ).enqueue(object : Callback<LoginResponse> {
-                    override fun onResponse(
-                        call: Call<LoginResponse>,
-                        response: Response<LoginResponse>
-                    ) {
-                        isLoading = false
-                        if (response.isSuccessful && response.body()?.success == true) {
-                            status = "Login successful!"
-                            onSuccess()
+        ApiClient.api.managerLogin(LoginRequest(username, password))
+            .enqueue(object : Callback<LoginResponse> {
+                override fun onResponse(
+                    call: Call<LoginResponse>,
+                    response: Response<LoginResponse>
+                ) {
+                    isLoading = false
+                    if (response.isSuccessful && response.body()?.success == true) {
+                        status = "Login successful"
+                        onSuccess()
                     } else {
                         status = "Invalid credentials"
                     }
@@ -250,19 +240,53 @@ private fun ManagerLoginScreen(text: String, onSuccess: () -> Unit, onBack: () -
 
                 override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
                     isLoading = false
-                    status = "Network error: ${t.localizedMessage}"
+                    status = "Network error: ${t.localizedMessage ?: "unknown"}"
                 }
             })
-        },
-        modifier = Modifier.fillMaxWidth()
-    ) {
-            Test(if (isLoading) " Please wait" else "Login")
     }
-    test(status)
 
-    Button( onClick = onBack, modifier = Modifier.fillMaxWidth()
-    ){
-        Text("Back")
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Manager Login", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+
+        OutlinedTextField(
+            value = username,
+            onValueChange = { username = it },
+            label = { Text("Username") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+        )
+
+        Button(
+            onClick = { attemptLogin() },
+            enabled = !isLoading,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (isLoading) "Please wait..." else "Login")
+        }
+
+        status?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium)
+        }
+
+        Button(
+            onClick = onBack,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Back")
+        }
     }
 }
 
