@@ -1,6 +1,15 @@
 package com.example.theia
-
+import androidx.compose.runtime.LaunchedEffect
 import android.os.Bundle
+import java.util.Locale
+import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import android.speech.tts.TextToSpeech
+import androidx.compose.ui.platform.LocalContext
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -174,6 +183,23 @@ private fun EmergencyScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
 
 @Composable
 private fun GuidanceScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
+    val context = LocalContext.current   // <-- 新增这一行
+
+    var tts by remember { mutableStateOf<TextToSpeech?>(null) }
+
+    LaunchedEffect(Unit) {
+        tts = TextToSpeech(
+            context,
+            object : TextToSpeech.OnInitListener {
+                override fun onInit(status: Int) {
+                    if (status == TextToSpeech.SUCCESS) {
+                        tts?.language = Locale.US
+                    }
+                }
+            }
+        )
+    }
+
     var currentLocation by remember { mutableStateOf("") }
     var destination by remember { mutableStateOf("") }
     var result by remember { mutableStateOf("Enter locations and press Get Guidance") }
@@ -226,6 +252,14 @@ private fun GuidanceScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                                     "${step.order}. ${step.instruction}"
                                 }
                                 result = "Summary:\n${body.summary}\n\nSteps:\n$stepsText"
+                                val params = Bundle()
+                                tts?.speak(
+                                    body.summary,
+                                    TextToSpeech.QUEUE_FLUSH,
+                                    params,
+                                    "guidance"
+                                )
+
                             } else {
                                 result = "Error ${response.code()}: ${response.message()}"
                             }
@@ -248,6 +282,12 @@ private fun GuidanceScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
             Text("Back to home")
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            tts?.stop()
+            tts?.shutdown()
         }
     }
 }
