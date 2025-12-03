@@ -16,8 +16,16 @@ class Settings(BaseModel):
     theme: str = "system"  # system | light | dark
 
 
+class Contact(BaseModel):
+    name: str
+    phone: str
+    relation: Optional[str] = None
+    preferred_channel: str = "sms"
+
+
 class User(BaseModel):
     id: int
     name: str
     email: Optional[str] = None
     settings: Settings = Field(default_factory=Settings)
+    contacts: list[Contact] = Field(default_factory=list)

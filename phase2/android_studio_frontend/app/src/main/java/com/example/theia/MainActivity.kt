@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +31,9 @@ import androidx.compose.ui.unit.dp
 import com.example.theia.network.ApiClient
 import com.example.theia.network.FallAlert
 import com.example.theia.ui.theme.TheiaTheme
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -113,9 +117,19 @@ private fun HomeScreen(onNavigate: (AppScreen) -> Unit, modifier: Modifier = Mod
 private fun EmergencyScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     var status by remember { mutableStateOf("Idle") }
     var isSending by remember { mutableStateOf(false) }
+    var countdownSeconds by remember { mutableStateOf<Int?>(null) }
+    var countdownJob by remember { mutableStateOf<Job?>(null) }
+    val scope = rememberCoroutineScope()
+
+    fun resetCountdown() {
+        countdownJob?.cancel()
+        countdownJob = null
+        countdownSeconds = null
+    }
 
     fun sendFallAlert() {
         if (isSending) return
+        resetCountdown()
         isSending = true
         status = "Sending fall alert..."
         val alert = FallAlert(
@@ -145,6 +159,25 @@ private fun EmergencyScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         })
     }
 
+    fun startCountdown() {
+        if (isSending || countdownSeconds != null) return
+        status = "Trigger armed. Sending shortly..."
+        countdownJob = scope.launch {
+            for (seconds in 5 downTo 1) {
+                countdownSeconds = seconds
+                delay(1000)
+            }
+            countdownSeconds = null
+            sendFallAlert()
+        }
+    }
+
+    fun cancelCountdown() {
+        if (countdownSeconds == null) return
+        resetCountdown()
+        status = "Cancelled"
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -155,11 +188,27 @@ private fun EmergencyScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         Text("Emergency notifications", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("Sends a dummy fall alert to the FastAPI backend (/alerts/fall).")
         Button(
-            onClick = { sendFallAlert() },
-            enabled = !isSending,
+            onClick = { startCountdown() },
+            enabled = !isSending && countdownSeconds == null,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (isSending) "Sending..." else "Send fall alert")
+            Text(
+                when {
+                    isSending -> "Sending..."
+                    countdownSeconds != null -> "Armed..."
+                    else -> "Trigger fall event"
+                }
+            )
+        }
+        countdownSeconds?.let { seconds ->
+            Text("Sending fall alert in $seconds s... Tap cancel to stop.")
+            Button(
+                onClick = { cancelCountdown() },
+                enabled = !isSending,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Cancel")
+            }
         }
         Text(status, style = MaterialTheme.typography.bodyMedium)
         Spacer(modifier = Modifier.height(16.dp))
