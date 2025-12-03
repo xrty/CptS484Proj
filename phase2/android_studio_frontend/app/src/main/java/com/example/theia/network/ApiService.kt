@@ -11,7 +11,19 @@ data class FallAlert(
     val source: String = "android_app"
 )
 
+data class LoginRequest(
+    val username: String,
+    val password: String
+)
+
+data class LoginResponse(
+    val success: Boolean
+)
+
 interface ApiService {
     @POST("alerts/fall")
     fun sendFallAlert(@Body alert: FallAlert): Call<Map<String, Any>>
+
+    @POST("manager/login")
+    fun managerLogin(@Body request: LoginRequest): Call<LoginResponse>
 }

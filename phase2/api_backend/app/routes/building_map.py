@@ -7,6 +7,18 @@ from app.models import Location  # Imported for potential reuse/consistency
 
 router = APIRouter(tags=["map"])
 
+class Login(BaseModel):
+    username: str
+    password: str
+    
+MANAGER_USERNAME = "managername"
+MANAGER_PASSWORD = "111111"
+
+@router.post("/manager/login")
+def manager_login(login: Login):
+    if login.username == MANAGER_USERNAME and login.password == MANAGER_PASSWORD:
+        return {"success": True}
+    raise HTTPException(status_code=404, detail="account not found")
 
 class MapUpdate(BaseModel):
     building: str
