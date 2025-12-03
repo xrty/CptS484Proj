@@ -1,6 +1,9 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from app.routes.users import default_user
+from app.services.notification import send_notifications_to_all_contacts
+
 router = APIRouter(tags=["emergency"])
 
 
@@ -30,7 +33,10 @@ def receive_fall(alert: FallAlert) -> dict:
     print(f"Source: {alert.source}")
     print("===========================")
 
+    notification_results = send_notifications_to_all_contacts(default_user)
+
     return {
         "status": "ok",
-        "message": "Fall alert received. (Dummy notification sent.)",
+        "message": "Fall alert received. Contacts notified.",
+        "notifications": notification_results,
     }
