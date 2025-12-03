@@ -1,5 +1,5 @@
 from typing import Optional
-
+from typing import List
 from pydantic import BaseModel, Field
 
 
@@ -21,3 +21,15 @@ class User(BaseModel):
     name: str
     email: Optional[str] = None
     settings: Settings = Field(default_factory=Settings)
+
+class GuidanceRequest(BaseModel):
+    current_location: str
+    destination: str
+
+class Step(BaseModel):
+    order: int
+    instruction: str
+
+class GuidanceResponse(BaseModel):
+    summary: str
+    steps: List[Step]

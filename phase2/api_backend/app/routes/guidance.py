@@ -1,32 +1,43 @@
 from typing import List, Optional
-
 from fastapi import APIRouter
 from pydantic import BaseModel
-
 from app.models import Location
+from app.models import GuidanceRequest, Step, GuidanceResponse
 
-router = APIRouter(tags=["guidance"])
+router = APIRouter(prefix="/guidance", tags=["guidance"])
 
+@router.post("/route", response_model=GuidanceResponse)
+def get_guidance_route(req: GuidanceRequest) -> GuidanceResponse:
+    """
+    Prototype simulator for THEIA guidance.
 
-class GuidanceRequest(BaseModel):
-    user_id: Optional[str] = None
-    current: Location
-    destination: Location
-
-
-class GuidanceResponse(BaseModel):
-    steps: List[str]
-    distance_m: Optional[float] = None
-
-
-@router.post("/guidance", response_model=GuidanceResponse)
-def get_guidance(payload: GuidanceRequest) -> GuidanceResponse:
-    # Simplest possible route: return canned steps; in reality run a pathfinder.
-    steps = [
-        f"Start at {payload.current.node} on floor {payload.current.floor}",
-        "Proceed forward 10 meters",
-        "Turn right",
-        f"Continue to {payload.destination.node} on floor {payload.destination.floor}",
-        "Arrived",
+    For demo purposes, it always returns:
+    - walk ahead 10 steps
+    - then turn left
+    - then continue to destination
+    """
+    steps: List[Step] = [
+        Step(order=1, instruction="Walk ahead 10 steps."),
+        Step(order=2, instruction="Then turn left."),
+        Step(order=3, instruction="Continue straight until you reach your destination."),
     ]
-    return GuidanceResponse(steps=steps, distance_m=25.0)
+
+    summary = (
+        f"From {req.current_location} to {req.destination}, "
+        f"walk ahead 10 steps, then turn left, then continue straight."
+    )
+
+    return GuidanceResponse(summary=summary, steps=steps)
+
+
+@router.get("/demo", response_model=GuidanceResponse)
+def demo_guidance() -> GuidanceResponse:
+    """
+    Simple GET endpoint you can hit in a browser or Postman
+    to show the TO-BE scenario without sending a body.
+    """
+    req = GuidanceRequest(
+        current_location="Current hallway",
+        destination="Next classroom",
+    )
+    return get_guidance_route(req)

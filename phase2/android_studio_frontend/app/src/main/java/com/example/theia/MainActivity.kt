@@ -30,6 +30,9 @@ import androidx.compose.ui.unit.dp
 import com.example.theia.network.ApiClient
 import com.example.theia.network.FallAlert
 import com.example.theia.ui.theme.TheiaTheme
+import com.example.theia.network.GuidanceRequest
+import com.example.theia.network.GuidanceResponse
+import com.example.theia.network.GuidanceStep
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -67,7 +70,7 @@ private fun AppShell() {
                 modifier = Modifier.padding(padding)
             )
             AppScreen.EMERGENCY -> EmergencyScreen(onBack = { screen = AppScreen.HOME }, modifier = Modifier.padding(padding))
-            AppScreen.GUIDANCE -> PlaceholderScreen("Guidance view (placeholder)", onBack = { screen = AppScreen.HOME }, modifier = Modifier.padding(padding))
+            AppScreen.GUIDANCE -> GuidanceScreen(onBack = { screen = AppScreen.HOME }, modifier = Modifier.padding(padding))
             AppScreen.MAP -> PlaceholderScreen("Map view (placeholder)", onBack = { screen = AppScreen.HOME }, modifier = Modifier.padding(padding))
         }
     }
@@ -98,7 +101,7 @@ private fun HomeScreen(onNavigate: (AppScreen) -> Unit, modifier: Modifier = Mod
             onClick = { onNavigate(AppScreen.GUIDANCE) },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Guidance (placeholder)")
+            Text("Guidance")
         }
         Button(
             onClick = { onNavigate(AppScreen.MAP) },
@@ -162,6 +165,86 @@ private fun EmergencyScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             Text(if (isSending) "Sending..." else "Send fall alert")
         }
         Text(status, style = MaterialTheme.typography.bodyMedium)
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+            Text("Back to home")
+        }
+    }
+}
+
+@Composable
+private fun GuidanceScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
+    var currentLocation by remember { mutableStateOf("") }
+    var destination by remember { mutableStateOf("") }
+    var result by remember { mutableStateOf("Enter locations and press Get Guidance") }
+    var loading by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Guidance", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+
+        androidx.compose.material3.OutlinedTextField(
+            value = currentLocation,
+            onValueChange = { currentLocation = it },
+            label = { Text("Current location") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        androidx.compose.material3.OutlinedTextField(
+            value = destination,
+            onValueChange = { destination = it },
+            label = { Text("Destination") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Button(
+            onClick = {
+                if (loading) return@Button
+                loading = true
+                result = "Requesting guidance..."
+
+                val request = GuidanceRequest(
+                    current_location = currentLocation.ifBlank { "Current hallway" },
+                    destination = destination.ifBlank { "Next classroom" }
+                )
+
+                ApiClient.guidanceApi.getRoute(request)
+                    .enqueue(object : Callback<GuidanceResponse> {
+                        override fun onResponse(
+                            call: Call<GuidanceResponse>,
+                            response: Response<GuidanceResponse>
+                        ) {
+                            loading = false
+                            if (response.isSuccessful) {
+                                val body = response.body()!!
+                                val stepsText = body.steps.joinToString("\n") { step ->
+                                    "${step.order}. ${step.instruction}"
+                                }
+                                result = "Summary:\n${body.summary}\n\nSteps:\n$stepsText"
+                            } else {
+                                result = "Error ${response.code()}: ${response.message()}"
+                            }
+                        }
+
+                        override fun onFailure(call: Call<GuidanceResponse>, t: Throwable) {
+                            loading = false
+                            result = "Network error: ${t.localizedMessage ?: "unknown"}"
+                        }
+                    })
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !loading
+        ) {
+            Text(if (loading) "Loading..." else "Get Guidance")
+        }
+
+        Text(result, style = MaterialTheme.typography.bodyMedium)
+
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
             Text("Back to home")

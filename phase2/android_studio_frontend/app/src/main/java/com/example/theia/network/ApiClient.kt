@@ -27,4 +27,14 @@ object ApiClient {
             .build()
             .create(ApiService::class.java)
     }
+
+    val guidanceApi: GuidanceApi by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(client)
+            .build()
+            .create(GuidanceApi::class.java)
+    }
+
 }
