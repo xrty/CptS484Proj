@@ -1,5 +1,5 @@
-from typing import Optional
-from typing import List
+from typing import List, Literal, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -16,20 +16,38 @@ class Settings(BaseModel):
     theme: str = "system"  # system | light | dark
 
 
+class Contact(BaseModel):
+    name: str
+    phone: str
+    relation: Optional[str] = None
+    preferred_channel: str = "sms"
+
+
 class User(BaseModel):
     id: int
     name: str
     email: Optional[str] = None
     settings: Settings = Field(default_factory=Settings)
+    contacts: List[Contact] = Field(default_factory=list)
+
 
 class GuidanceRequest(BaseModel):
     current_location: str
     destination: str
 
+
 class Step(BaseModel):
     order: int
     instruction: str
 
+
 class GuidanceResponse(BaseModel):
     summary: str
     steps: List[Step]
+
+
+class Hallway(BaseModel):
+    id: int
+    name: str
+    status: Literal["available", "under_construction"] = "available"
+    description: Optional[str] = None

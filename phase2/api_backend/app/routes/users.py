@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.models import Settings, User
+from app.models import Contact, Settings, User
 
 router = APIRouter(tags=["users"])
 
@@ -15,6 +15,26 @@ def create_user_dummy_logic() -> User:
         name="Test User",
         email="test@example.com",
         settings=Settings(),
+        contacts=[
+            Contact(
+                name="Alice Anderson",
+                phone="+1-555-0101",
+                relation="sister",
+                preferred_channel="sms",
+            ),
+            Contact(
+                name="Bob Brown",
+                phone="+1-555-0202",
+                relation="neighbor",
+                preferred_channel="call",
+            ),
+            Contact(
+                name="Carmen Carter",
+                phone="+1-555-0303",
+                relation="caregiver",
+                preferred_channel="sms",
+            ),
+        ],
     )
 
 
