@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -28,7 +28,22 @@ class User(BaseModel):
     name: str
     email: Optional[str] = None
     settings: Settings = Field(default_factory=Settings)
-    contacts: list[Contact] = Field(default_factory=list)
+    contacts: List[Contact] = Field(default_factory=list)
+
+
+class GuidanceRequest(BaseModel):
+    current_location: str
+    destination: str
+
+
+class Step(BaseModel):
+    order: int
+    instruction: str
+
+
+class GuidanceResponse(BaseModel):
+    summary: str
+    steps: List[Step]
 
 
 class Hallway(BaseModel):

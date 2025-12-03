@@ -1,6 +1,7 @@
 package com.example.theia
 
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -13,8 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,6 +25,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -39,6 +42,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.theia.network.ApiClient
 import com.example.theia.network.FallAlert
+import com.example.theia.network.GuidanceRequest
+import com.example.theia.network.GuidanceResponse
+import com.example.theia.network.GuidanceStep
 import com.example.theia.network.Hallway
 import com.example.theia.network.HallwayUpdateRequest
 import com.example.theia.network.LoginRequest
@@ -50,6 +56,7 @@ import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,8 +95,14 @@ private fun AppShell() {
                 onNavigate = { screen = it },
                 modifier = Modifier.padding(padding)
             )
-            AppScreen.EMERGENCY -> EmergencyScreen(onBack = { screen = AppScreen.HOME }, modifier = Modifier.padding(padding))
-            AppScreen.GUIDANCE -> PlaceholderScreen("Guidance view (placeholder)", onBack = { screen = AppScreen.HOME }, modifier = Modifier.padding(padding))
+            AppScreen.EMERGENCY -> EmergencyScreen(
+                onBack = { screen = AppScreen.HOME },
+                modifier = Modifier.padding(padding)
+            )
+            AppScreen.GUIDANCE -> GuidanceScreen(
+                onBack = { screen = AppScreen.HOME },
+                modifier = Modifier.padding(padding)
+            )
             AppScreen.MANAGER_LOGIN -> ManagerLoginScreen(
                 onSuccess = { screen = AppScreen.MANAGER_DASHBOARD },
                 onBack = { screen = AppScreen.HOME },
@@ -134,7 +147,7 @@ private fun HomeScreen(onNavigate: (AppScreen) -> Unit, modifier: Modifier = Mod
             onClick = { onNavigate(AppScreen.GUIDANCE) },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Guidance (placeholder)")
+            Text("Guidance")
         }
         Button(
             onClick = { onNavigate(AppScreen.MANAGER_LOGIN) },
@@ -246,6 +259,116 @@ private fun EmergencyScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
             Text("Back to home")
+        }
+    }
+}
+
+@Composable
+private fun GuidanceScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var tts by remember { mutableStateOf<TextToSpeech?>(null) }
+
+    LaunchedEffect(Unit) {
+        tts = TextToSpeech(
+            context,
+            object : TextToSpeech.OnInitListener {
+                override fun onInit(status: Int) {
+                    if (status == TextToSpeech.SUCCESS) {
+                        tts?.language = Locale.US
+                    }
+                }
+            }
+        )
+    }
+
+    var currentLocation by remember { mutableStateOf("") }
+    var destination by remember { mutableStateOf("") }
+    var result by remember { mutableStateOf("Enter locations and press Get Guidance") }
+    var loading by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Guidance", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+
+        OutlinedTextField(
+            value = currentLocation,
+            onValueChange = { currentLocation = it },
+            label = { Text("Current location") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = destination,
+            onValueChange = { destination = it },
+            label = { Text("Destination") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Button(
+            onClick = {
+                if (loading) return@Button
+                loading = true
+                result = "Requesting guidance..."
+
+                val request = GuidanceRequest(
+                    current_location = currentLocation.ifBlank { "Current hallway" },
+                    destination = destination.ifBlank { "Next classroom" }
+                )
+
+                ApiClient.guidanceApi.getRoute(request)
+                    .enqueue(object : Callback<GuidanceResponse> {
+                        override fun onResponse(
+                            call: Call<GuidanceResponse>,
+                            response: Response<GuidanceResponse>
+                        ) {
+                            loading = false
+                            if (response.isSuccessful) {
+                                val body = response.body()!!
+                                val stepsText = body.steps.joinToString("\n") { step: GuidanceStep ->
+                                    "${step.order}. ${step.instruction}"
+                                }
+                                result = "Summary:\n${body.summary}\n\nSteps:\n$stepsText"
+                                val params = Bundle()
+                                tts?.speak(
+                                    body.summary,
+                                    TextToSpeech.QUEUE_FLUSH,
+                                    params,
+                                    "guidance"
+                                )
+                            } else {
+                                result = "Error ${response.code()}: ${response.message()}"
+                            }
+                        }
+
+                        override fun onFailure(call: Call<GuidanceResponse>, t: Throwable) {
+                            loading = false
+                            result = "Network error: ${t.localizedMessage ?: "unknown"}"
+                        }
+                    })
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !loading
+        ) {
+            Text(if (loading) "Loading..." else "Get Guidance")
+        }
+
+        Text(result, style = MaterialTheme.typography.bodyMedium)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+            Text("Back to home")
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            tts?.stop()
+            tts?.shutdown()
         }
     }
 }
@@ -525,7 +648,6 @@ private fun ManagerDashboardScreen(
         }
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable
