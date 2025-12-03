@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class AppScreen {
-    HOME, EMERGENCY, GUIDANCE, MAP
+    HOME, EMERGENCY, GUIDANCE, MANAGER_LOGIN, MAP_DASHBOARD
 }
 
 @Composable
@@ -68,7 +68,20 @@ private fun AppShell() {
             )
             AppScreen.EMERGENCY -> EmergencyScreen(onBack = { screen = AppScreen.HOME }, modifier = Modifier.padding(padding))
             AppScreen.GUIDANCE -> PlaceholderScreen("Guidance view (placeholder)", onBack = { screen = AppScreen.HOME }, modifier = Modifier.padding(padding))
-            AppScreen.MAP -> PlaceholderScreen("Map view (placeholder)", onBack = { screen = AppScreen.HOME }, modifier = Modifier.padding(padding))
+            AppScreen.Manager_LOGIN -> ManagerLoginScreen(
+                onSuccess = { screen = AppScreen.MANAGER_DASHBOARD },
+                onBack = { screen = AppScreen.HOME },
+                modifier = Modifier.padding(padding)
+            )
+
+            AppScreen.M_DASHBOARD ->
+                ManagerDashboardScreen(
+                    onRegionStatus = { /* TODO next step */ },
+                    onAccessibleAreas = { /* TODO next step */ },
+                    onBack = { screen = AppScreen.HOME },
+                    modifier = Modifier.padding(padding)
+                )
+        }
         }
     }
 }
@@ -104,7 +117,7 @@ private fun HomeScreen(onNavigate: (AppScreen) -> Unit, modifier: Modifier = Mod
             onClick = { onNavigate(AppScreen.MAP) },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Building map (placeholder)")
+            Text("Building Manager Login")
         }
     }
 }
@@ -185,6 +198,117 @@ private fun PlaceholderScreen(text: String, onBack: () -> Unit, modifier: Modifi
         }
     }
 }
+
+@Composable
+private fun ManagerLoginScreen(text: String, onSuccess: () -> Unit, onBack: () -> Unit, modifier: Modifier = Modifier) {
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Manager Login", = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+
+        androidx.compose.material3.OutlinedTextField(
+            value = username,
+            onValueChange = { username = it },
+            label = { Text("Username") },
+            modifier = Modifier.fillMaxWidth
+        )
+        androidx.compose.material3.OutlinedTextField(
+            value = password,
+            onValueChange = { username = it },
+            label = { Text("Password") },
+            modifier = Modifier.fillMaxWidth
+        )
+
+        Button(
+            onClick = {if (isLoading) return @Button
+                      isLoading=true
+                      status = "Logging in..."},
+
+                ApiClient.api.managerLogin(
+                    LoginRequest(username, password)
+                ).enqueue(object : Callback<LoginResponse> {
+                    override fun onResponse(
+                        call: Call<LoginResponse>,
+                        response: Response<LoginResponse>
+                    ) {
+                        isLoading = false
+                        if (response.isSuccessful && response.body()?.success == true) {
+                            status = "Login successful!"
+                            onSuccess()
+                    } else {
+                        status = "Invalid credentials"
+                    }
+                }
+
+                override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
+                    isLoading = false
+                    status = "Network error: ${t.localizedMessage}"
+                }
+            })
+        },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+            Test(if (isLoading) " Please wait" else "Login")
+    }
+    test(status)
+
+    Button( onClick = onBack, modifier = Modifier.fillMaxWidth()
+    ){
+        Text("Back")
+    }
+}
+
+@Composable
+private fun ManagerDashboardScreen(
+    onRegionStatus: () -> Unit,
+    onAccessibleAreas: () -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            "Manager Dashboard",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
+
+        Button(
+            onClick = onRegionStatus,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Change Region Status")
+        }
+
+        Button(
+            onClick = onAccessibleAreas,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("View Accessible Areas")
+        }
+
+        Button(
+            onClick = onBack,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Back")
+        }
+    }
+}
+
 
 @Preview(showBackground = true)
 @Composable
